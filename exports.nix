@@ -1,59 +1,91 @@
-# pkgs/nixcats-exports.nix
 {nixCats, nixpkgs, ...}: let
   utils = nixCats.utils;
-  # path in the store
-  luaPath = ./.;
+  # path to location with init.lua and lua directory
+  luaPath = ./nvim;
 
-  # small category / package definitions — extend later
   categoryDefinitions = {pkgs, ...}: {
-    lspsAndRuntimeDeps.general = with pkgs; [
-      nixd
-      alejandra
-      lua-language-server
+    # Core tools always included
+    lspsAndRuntimeDeps = {
+      general = with pkgs; [
+        wl-clipboard
+      ];
 
-      # python
-      ruff
-      pyright
+      # Language-specific categories
+      nix = with pkgs; [
+        nixd
+        alejandra
+      ];
 
-      gopls
+      lua = with pkgs; [
+        lua-language-server
+      ];
 
-      # clipboard in wayland
-      wl-clipboard
-    ];
+      python = with pkgs; [
+        ruff
+        pyright
+      ];
 
-    startupPlugins.general = with pkgs.vimPlugins; [
-      telescope-nvim
-      telescope-fzf-native-nvim
-      plenary-nvim
-      nvim-lspconfig
-      nvim-treesitter.withAllGrammars
-      oil-nvim
-      kanagawa-nvim
-    ];
+      go = with pkgs; [
+        gopls
+      ];
+    };
+
+    startupPlugins = {
+      general = with pkgs.vimPlugins; [
+        telescope-nvim
+        telescope-fzf-native-nvim
+        plenary-nvim
+        oil-nvim
+        kanagawa-nvim
+      ];
+
+      lsp = with pkgs.vimPlugins; [
+        nvim-lspconfig
+      ];
+
+      treesitter = with pkgs.vimPlugins; [
+        nvim-treesitter.withAllGrammars
+      ];
+    };
   };
 
   packageDefinitions = {
-    nixCats = {
-      pkgs,
-      name,
-      ...
-    }: {
+    # Minimal configuration
+    minimal = {pkgs, name, ...}: {
       settings = {
-        wrapRc = false;  # lua files will not be copied into the store, handle it separately with activation script
-        suffix-path = true;
-        suffix-LD = true;
-        configDirName = "nixCats-nvim";
+        wrapRc = true;  # Let nixCats handle the config
+        configDirName = "nixCats";
+        aliases = ["nvim"];
+      };
+      categories = {
+        general = true;
+        lsp = true;
+        # Other categories false by default
+      };
+    };
+
+    # Full development environment
+    nixCats = {pkgs, name, ...}: {
+      settings = {
+        wrapRc = true;
+        configDirName = "nixCats";
         aliases = ["nvim"];
         hosts.python3.enable = true;
         hosts.node.enable = true;
       };
-      categories = {general = true;};
-      extra = {};
+      categories = {
+        general = true;
+        lsp = true;
+        treesitter = true;
+        nix = true;
+        lua = true;
+        python = true;
+        go = true;
+      };
     };
   };
 
   defaultPackageName = "nixCats";
-
   forEachSystem = utils.eachSystem nixpkgs.lib.platforms.all;
 in
   # Build per-system outputs (packages/devShells) then add cross-system modules/overlays
